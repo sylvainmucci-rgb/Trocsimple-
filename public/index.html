@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TrocSimple — Multi-utilisateurs</title>
+<style>
+  :root {
+    --bg: #f7f9f8;
+    --card: #fff;
+    --text: #1a1a1a;
+    --muted: #5a6a65;
+    --accent: #1b4332;
+    --accent2: #2d6a4f;
+    --light: #d8f3dc;
+    --border: #e2e8e5;
+    --pending: #fff8e6;
+    --danger: #b91c1c;
+    --success: #166534;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.45;
+    min-height: 100vh;
+  }
+  header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  header h1 { font-size: 1.45rem; color: var(--accent); font-weight: 800; }
+  .sub { font-size: 0.78rem; color: var(--muted); margin: 2px 0 10px; }
+  .nick-row { display: flex; gap: 8px; max-width: 400px; }
+  .nick-row input { flex: 1; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; }
+  .nick-row button { background: var(--accent); color: white; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+  .container { max-width: 720px; margin: 0 auto; padding: 12px 16px 80px; }
+  .big-btn {
+    display: block; width: 100%; background: var(--accent); color: white;
+    text-align: center; padding: 14px; border-radius: var(--radius);
+    font-size: 1.05rem; font-weight: 700; border: none; cursor: pointer; margin: 12px 0;
+  }
+  .tabs {
+    display: flex; background: var(--card); border-radius: var(--radius);
+    overflow: hidden; border: 1px solid var(--border); margin-bottom: 14px;
+  }
+  .tab {
+    flex: 1; text-align: center; padding: 12px 4px; font-size: 0.88rem;
+    font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); background: #f8faf9; }
+  .card { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; border: 1px solid var(--border); }
+  label { display: block; font-size: 0.8rem; font-weight: 600; margin: 12px 0 4px; color: var(--muted); }
+  input, textarea, select { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; font-family: inherit; }
+  textarea { min-height: 70px; resize: vertical; }
+  button.primary { background: var(--accent); color: white; border: none; width: 100%; padding: 14px; border-radius: 10px; font-size: 1.05rem; font-weight: 700; margin-top: 14px; cursor: pointer; }
+  .item img { max-width: 100%; max-height: 220px; border-radius: 8px; margin: 8px 0; object-fit: cover; }
+  .item.pending { background: var(--pending); }
+  .want { background: #ecfdf5; padding: 8px 10px; border-radius: 8px; margin: 8px 0; font-size: 0.95rem; }
+  .meta { font-size: 0.8rem; color: var(--muted); margin: 3px 0; }
+  .votes { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-weight: 600; font-size: 0.85rem; }
+  .bar { flex: 1; height: 6px; background: #eee; border-radius: 3px; }
+  .bar > div { height: 100%; background: var(--accent2); border-radius: 3px; }
+  .actions { display: flex; gap: 8px; margin-top: 8px; }
+  .actions button { flex: 1; padding: 10px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+  .btn-ok { background: var(--light); color: var(--accent); }
+  .btn-no { background: #fee2e2; color: var(--danger); }
+  .empty { text-align: center; color: var(--muted); padding: 40px 16px; }
+  .hidden { display: none; }
+  .status { margin: 10px 0; padding: 12px; border-radius: 8px; font-weight: 600; text-align: center; }
+  .status.error { background: #fee2e2; color: var(--danger); }
+  .status.ok { background: #dcfce7; color: var(--success); }
+</style>
+</head>
+<body>
+<header>
+  <h1>TrocSimple</h1>
+  <div class="sub">Multi-utilisateurs · 0 pub · 0 frais · vérification communautaire</div>
+  <div class="nick-row">
+    <input id="nick" placeholder="Ton pseudo" maxlength="24">
+    <button id="saveNick">OK</button>
+  </div>
+</header>
+
+<div class="container">
+  <button class="big-btn" onclick="showTab('propose')">+ Proposer un objet</button>
+
+  <input id="search" placeholder="🔍 Rechercher un objet, une ville, ce qui est cherché…" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:10px; font-size:1rem; margin-bottom:12px;">
+
+  <div class="tabs">
+    <div class="tab active" data-tab="live">Publiées</div>
+    <div class="tab" data-tab="pending">En attente <span id="pendBadge">0</span></div>
+    <div class="tab" data-tab="propose">Formulaire</div>
+  </div>
+
+  <div id="live" class="panel">
+    <div id="liveList"></div>
+  </div>
+
+  <div id="pending" class="panel hidden">
+    <p class="meta" style="margin-bottom:10px;">5 validations pour publier · 3 rejets = suppression.</p>
+    <div id="pendingList"></div>
+  </div>
+
+  <div id="propose" class="panel hidden">
+    <div class="card">
+      <h2 style="color:var(--accent); margin-bottom:6px;">Proposer un objet</h2>
+      <div id="formStatus"></div>
+      <form id="form">
+        <label>Titre *</label>
+        <input id="title" required placeholder="Ex : Cordes guitare acoustique">
+
+        <label>Catégorie *</label>
+        <select id="category" required>
+          <option value="">Choisir…</option>
+          <option>Vêtements</option>
+          <option>Électronique</option>
+          <option>Livres & Médias</option>
+          <option>Maison</option>
+          <option>Sport & Loisirs</option>
+          <option>Musique</option>
+          <option>Autre</option>
+        </select>
+
+        <label>Description</label>
+        <textarea id="description" placeholder="État, taille, particularités…"></textarea>
+
+        <label>URL de la photo (optionnel)</label>
+        <input type="url" id="photo" placeholder="https://…">
+
+        <label>Ce que tu cherches *</label>
+        <input id="want" required placeholder="Ex : J'étudie toutes propositions de valeur similaire">
+
+        <label>Valeur approx. de ton objet (€) <small>(optionnel)</small></label>
+        <input type="number" id="valueOffer" min="0" step="1" placeholder="Ex : 10">
+
+        <label>Valeur approx. souhaitée (€) <small>(optionnel)</small></label>
+        <input type="number" id="valueWant" min="0" step="1" placeholder="Ex : 10">
+
+        <label>Ville / secteur *</label>
+        <input id="city" required placeholder="Ex : Eauze">
+
+        <label>Contact *</label>
+        <input id="contact" required placeholder="Email, téléphone, Signal…">
+
+        <label style="display:flex; align-items:center; gap:8px; margin-top:12px;">
+          <input type="checkbox" id="mondialRelay" style="width:auto;">
+          Envoi possible via Mondial Relay
+        </label>
+        <p class="meta" style="margin-top:4px;">
+          <a href="https://www.mondialrelay.fr" target="_blank" rel="noopener">Créer un envoi sur Mondial Relay →</a>
+        </p>
+
+        <button type="submit" class="primary">Publier l’annonce</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+const nickKey = 'troc_nick';
+let nick = localStorage.getItem(nickKey) || '';
+if (nick) document.getElementById('nick').value = nick;
+
+function getNick() { return document.getElementById('nick').value.trim() || 'Anonyme'; }
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&','<':'<','>':'>','"':'"',"'":'&#39;'}[c])); }
+
+function showStatus(msg, err) {
+  const el = document.getElementById('formStatus');
+  el.className = 'status ' + (err ? 'error' : 'ok');
+  el.textContent = msg;
+}
+
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.add('hidden'));
+  document.getElementById(name).classList.remove('hidden');
+  if (name === 'live' || name === 'pending') loadData();
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => showTab(t.dataset.tab));
+
+document.getElementById('saveNick').onclick = () => {
+  const v = document.getElementById('nick').value.trim();
+  if (v) {
+    localStorage.setItem(nickKey, v);
+    nick = v;
+    showStatus('Pseudo enregistré : ' + v, false);
+  }
+};
+
+async function loadData() {
+  try {
+    const r = await fetch('/api/listings');
+    const data = await r.json();
+    renderLive(data.live || []);
+    renderPending(data.pending || []);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function renderLive(list) {
+  const q = (document.getElementById('search').value || '').toLowerCase();
+  const filtered = list.filter(i =>
+    i.title.toLowerCase().includes(q) ||
+    (i.want || '').toLowerCase().includes(q) ||
+    i.city.toLowerCase().includes(q)
+  );
+  const el = document.getElementById('liveList');
+  if (!filtered.length) {
+    el.innerHTML = `<div class="empty">Aucune annonce publiée pour le moment.</div>`;
+    return;
+  }
+  el.innerHTML = filtered.map(i => `
+    <div class="item">
+      ${i.photo ? `<img src="${esc(i.photo)}" alt="">` : ''}
+      <strong>${esc(i.title)}</strong>
+      <span class="meta">${esc(i.category)} · ${esc(i.city)}</span>
+      <div class="want"><b>Cherche :</b> ${esc(i.want)}${i.valueWant ? ` <span class="meta">(≈ ${i.valueWant} €)</span>` : ''}</div>
+      ${i.valueOffer ? `<div class="meta">Valeur approx. : ≈ ${i.valueOffer} €</div>` : ''}
+      ${i.description ? `<div class="meta">${esc(i.description)}</div>` : ''}
+      ${i.mondialRelay ? `<div class="meta" style="color:var(--accent2); font-weight:600;">📦 Envoi possible via Mondial Relay · <a href="https://www.mondialrelay.fr" target="_blank" rel="noopener">Site Mondial Relay</a></div>` : ''}
+      <div class="meta">Contact : ${esc(i.contact)} · par ${esc(i.author)}</div>
+      <div class="actions">
+        <button class="btn-ok" onclick="contact('${esc(i.contact).replace(/'/g, "\\'")}')">Contacter</button>
+        <button class="btn-ok" style="background:#25D366; color:white;" onclick="whatsapp('${esc(i.contact).replace(/'/g, "\\'")}')">WhatsApp</button>
+        ${getNick() === i.author ? `<button class="btn-no" onclick="deleteItem('${i.id}')">Supprimer</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderPending(list) {
+  const q = (document.getElementById('search').value || '').toLowerCase();
+  const filtered = list.filter(i =>
+    i.title.toLowerCase().includes(q) ||
+    (i.want || '').toLowerCase().includes(q) ||
+    i.city.toLowerCase().includes(q)
+  );
+  document.getElementById('pendBadge').textContent = list.length;
+  const el = document.getElementById('pendingList');
+  if (!filtered.length) {
+    el.innerHTML = `<div class="empty">Aucune annonce en attente${q ? ' correspondant à la recherche' : ''}.</div>`;
+    return;
+  }
+  const me = getNick();
+  el.innerHTML = filtered.map(i => {
+    const ok = (i.votes || []).length;
+    const no = (i.rejects || []).length;
+    const voted = (i.votes || []).includes(me) || (i.rejects || []).includes(me);
+    return `
+      <div class="item pending">
+        ${i.photo ? `<img src="${esc(i.photo)}" alt="">` : ''}
+        <strong>${esc(i.title)}</strong>
+        <div class="meta">${esc(i.category)} · ${esc(i.city)} · par ${esc(i.author)}</div>
+        <div class="want"><b>Cherche :</b> ${esc(i.want)}</div>
+        ${i.valueOffer ? `<div class="meta">≈ ${i.valueOffer} €</div>` : ''}
+        ${i.mondialRelay ? `<div class="meta" style="color:var(--accent2);">📦 Mondial Relay possible · <a href="https://www.mondialrelay.fr" target="_blank" rel="noopener">Site</a></div>` : ''}
+        <div class="votes">
+          <span>${ok}/5</span>
+          <div class="bar"><div style="width:${Math.min(100, ok * 20)}%"></div></div>
+          <span style="color:var(--danger)">${no} rejets</span>
+        </div>
+        ${voted
+          ? `<div class="meta">Déjà voté</div>`
+          : `<div class="actions">
+               <button class="btn-ok" onclick="vote('${i.id}', true)">Valider</button>
+               <button class="btn-no" onclick="vote('${i.id}', false)">Rejeter</button>
+             </div>`}
+        ${getNick() === i.author ? `<div class="actions"><button class="btn-no" onclick="deleteItem('${i.id}')">Supprimer mon annonce</button></div>` : ''}
+        <div class="actions">
+          <button class="btn-ok" onclick="contact('${esc(i.contact).replace(/'/g, "\\'")}')">Contacter</button>
+          <button class="btn-ok" style="background:#25D366; color:white;" onclick="whatsapp('${esc(i.contact).replace(/'/g, "\\'")}')">WhatsApp</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function vote(id, approve) {
+  const me = getNick();
+  if (me === 'Anonyme') { alert('Choisis un pseudo'); return; }
+  await fetch('/api/vote', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, nick: me, approve })
+  });
+  loadData();
+}
+
+async function deleteItem(id) {
+  const me = getNick();
+  if (me === 'Anonyme') { alert('Choisis un pseudo'); return; }
+  if (!confirm('Supprimer cette annonce ?')) return;
+  const r = await fetch('/api/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, nick: me })
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    alert(err.error || 'Erreur lors de la suppression');
+  }
+  loadData();
+}
+
+function contact(info) {
+  if (!info) return;
+  if (info.includes('@')) {
+    window.location.href = 'mailto:' + info;
+  } else if (/^[\d\s+\-().]+$/.test(info.replace(/\s/g, ''))) {
+    window.location.href = 'tel:' + info.replace(/\s/g, '');
+  } else {
+    navigator.clipboard?.writeText(info).then(() => {
+      alert('Contact copié : ' + info);
+    }).catch(() => {
+      alert('Contact : ' + info);
+    });
+  }
+}
+
+function whatsapp(info) {
+  if (!info) return;
+  // Extrait les chiffres
+  let num = info.replace(/\D/g, '');
+  if (num.startsWith('0') && num.length === 10) {
+    num = '33' + num.slice(1); // France
+  }
+  if (num.length >= 8) {
+    window.open('https://wa.me/' + num, '_blank');
+  } else {
+    alert('Numéro WhatsApp non reconnu dans le contact : ' + info);
+  }
+}
+
+document.getElementById('form').onsubmit = async (e) => {
+  e.preventDefault();
+  const me = getNick();
+  if (me === 'Anonyme') {
+    showStatus('Choisis un pseudo en haut.', true);
+    return;
+  }
+  const body = {
+    title: document.getElementById('title').value.trim(),
+    category: document.getElementById('category').value,
+    description: document.getElementById('description').value.trim(),
+    photo: document.getElementById('photo').value.trim(),
+    want: document.getElementById('want').value.trim(),
+    valueOffer: document.getElementById('valueOffer').value ? +document.getElementById('valueOffer').value : null,
+    valueWant: document.getElementById('valueWant').value ? +document.getElementById('valueWant').value : null,
+    city: document.getElementById('city').value.trim(),
+    contact: document.getElementById('contact').value.trim(),
+    mondialRelay: document.getElementById('mondialRelay').checked,
+    author: me
+  };
+  if (!body.title || !body.category || !body.want || !body.city || !body.contact) {
+    showStatus('Remplis les champs obligatoires.', true);
+    return;
+  }
+  const r = await fetch('/api/propose', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (r.ok) {
+    e.target.reset();
+    showStatus('Annonce envoyée en vérification ! Elle sera publiée après 5 validations.', false);
+    setTimeout(() => showTab('pending'), 600);
+  } else {
+    showStatus('Erreur lors de l’envoi.', true);
+  }
+};
+
+document.getElementById('search').oninput = loadData;
+
+showTab('live');
+loadData();
+setInterval(loadData, 8000); // rafraîchissement auto
+</script>
+</body>
+</html>

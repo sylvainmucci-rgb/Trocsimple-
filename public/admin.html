@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — TrocSimple</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #f7f9f8; margin: 0; padding: 16px; }
+  h1 { color: #1b4332; }
+  .login { max-width: 400px; margin: 40px auto; background: white; padding: 20px; border-radius: 12px; }
+  input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #ddd; font-size: 1rem; }
+  button { background: #1b4332; color: white; border: none; cursor: pointer; font-weight: 600; }
+  .item { background: white; border: 1px solid #e2e8e5; border-radius: 10px; padding: 12px; margin: 10px 0; }
+  .item.pending { background: #fff8e6; }
+  .actions button { width: auto; padding: 6px 12px; margin-right: 6px; font-size: 0.85rem; }
+  .danger { background: #b91c1c; }
+  .ok { background: #2d6a4f; }
+  .hidden { display: none; }
+  .meta { color: #666; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<div id="login" class="login">
+  <h1>Admin TrocSimple</h1>
+  <input type="password" id="pwd" placeholder="Mot de passe admin">
+  <button onclick="login()">Entrer</button>
+  <p class="meta">Mot de passe par défaut : admin123</p>
+</div>
+
+<div id="admin" class="hidden">
+  <h1>Gestion des annonces</h1>
+  <button onclick="load()">Rafraîchir</button>
+  <button onclick="resetData()" style="background:#b91c1c;">Réinitialiser les données factices</button>
+  <h2>En attente</h2>
+  <div id="pending"></div>
+  <h2>Publiées</h2>
+  <div id="live"></div>
+</div>
+
+<script>
+let password = '';
+
+function login() {
+  password = document.getElementById('pwd').value;
+  if (!password) return alert('Mot de passe requis');
+  document.getElementById('login').classList.add('hidden');
+  document.getElementById('admin').classList.remove('hidden');
+  load();
+}
+
+async function load() {
+  const r = await fetch('/api/admin/listings', {
+    headers: { 'x-admin-password': password }
+  });
+  if (!r.ok) { alert('Mot de passe incorrect'); location.reload(); return; }
+  const data = await r.json();
+  render(data);
+}
+
+function render(data) {
+  document.getElementById('pending').innerHTML = (data.pending || []).map(i => `
+    <div class="item pending">
+      <strong>${i.title}</strong> — ${i.city} (${i.author})
+      <div class="meta">${i.want} · ${i.votes?.length || 0}/5</div>
+      <div class="actions">
+        <button class="ok" onclick="publish('${i.id}')">Publier maintenant</button>
+        <button class="danger" onclick="del('${i.id}', 'pending')">Supprimer</button>
+      </div>
+    </div>
+  `).join('') || '<p>Aucune</p>';
+
+  document.getElementById('live').innerHTML = (data.live || []).map(i => `
+    <div class="item">
+      <strong>${i.title}</strong> — ${i.city} (${i.author})
+      <div class="meta">${i.want}</div>
+      <div class="actions">
+        <button class="danger" onclick="del('${i.id}', 'live')">Supprimer</button>
+      </div>
+    </div>
+  `).join('') || '<p>Aucune</p>';
+}
+
+async function del(id, type) {
+  if (!confirm('Supprimer cette annonce ?')) return;
+  await fetch('/api/admin/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-admin-password': password },
+    body: JSON.stringify({ id, type })
+  });
+  load();
+}
+
+async function publish(id) {
+  await fetch('/api/admin/publish', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-admin-password': password },
+    body: JSON.stringify({ id })
+  });
+  load();
+}
+
+async function resetData() {
+  if (!confirm('Réinitialiser avec les données factices ?')) return;
+  await fetch('/api/admin/reset', {
+    method: 'POST',
+    headers: { 'x-admin-password': password }
+  });
+  load();
+}
+</script>
+</body>
+</html>
