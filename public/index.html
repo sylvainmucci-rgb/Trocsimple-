@@ -89,6 +89,7 @@
     <input id="nick" placeholder="Ton pseudo" maxlength="24">
     <button id="saveNick">OK</button>
   </div>
+  <div id="nickShow" class="sub" style="display:none;margin-top:6px">👋 Salut <b id="nickName"></b> · <a href="#" id="changeNick" style="color:inherit">changer</a></div>
 </header>
 
 <div class="container">
@@ -189,13 +190,27 @@ function showTab(name) {
 }
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => showTab(t.dataset.tab));
 
-document.getElementById('saveNick').onclick = () => {
-  const v = document.getElementById('nick').value.trim();
-  if (v) {
-    localStorage.setItem(nickKey, v);
-    nick = v;
-    showStatus('Pseudo enregistré : ' + v, false);
-  }
+function saveNick(v) {
+  v = (v || '').trim();
+  if (!v) return;
+  localStorage.setItem(nickKey, v);
+  document.cookie = 'troc_nick=' + encodeURIComponent(v) + ';max-age=31536000;path=/';
+  nick = v;
+  document.getElementById('nickName').textContent = v;
+  document.querySelector('.nick-row').style.display = 'none';
+  document.getElementById('nickShow').style.display = '';
+}
+if (!nick) { const m = document.cookie.match(/(?:^|; )troc_nick=([^;]*)/); if (m) nick = decodeURIComponent(m[1]); }
+if (nick) { document.getElementById('nick').value = nick; saveNick(nick); }
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
+document.getElementById('saveNick').onclick = () => saveNick(document.getElementById('nick').value);
+document.getElementById('nick').addEventListener('change', e => saveNick(e.target.value));
+document.getElementById('nick').addEventListener('keydown', e => { if (e.key === 'Enter') saveNick(e.target.value); });
+document.getElementById('changeNick').onclick = e => {
+  e.preventDefault();
+  document.querySelector('.nick-row').style.display = '';
+  document.getElementById('nickShow').style.display = 'none';
+  document.getElementById('nick').focus();
 };
 
 async function loadData() {
