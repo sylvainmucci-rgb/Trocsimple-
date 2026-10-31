@@ -77,6 +77,9 @@
   .status.error { background: #fee2e2; color: var(--danger); }
   .status.ok { background: #dcfce7; color: var(--success); }
 </style>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#16a34a">
+<link rel="apple-touch-icon" href="/icon-192.png">
 </head>
 <body>
 <header>
@@ -384,5 +387,6 @@ showTab('live');
 loadData();
 setInterval(loadData, 8000); // rafraîchissement auto
 </script>
+<script>if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js");</script>
 </body>
 </html>
