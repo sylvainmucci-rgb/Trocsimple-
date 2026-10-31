@@ -1,4 +1,4 @@
-# TrocSimple — Plateforme de troc multi-utilisateurs
+# TrocFacile — Plateforme de troc multi-utilisateurs
 
 Plateforme simple de troc entre particuliers (0 pub, 0 frais) avec vérification communautaire.
 

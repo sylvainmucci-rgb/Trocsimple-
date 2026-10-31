@@ -234,6 +234,6 @@ app.post('/api/admin/reset', checkAdmin, (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`TrocSimple backend démarré sur le port ${PORT}`);
+  console.log(`TrocFacile backend démarré sur le port ${PORT}`);
   console.log(`Admin password: ${ADMIN_PASSWORD}`);
 });
